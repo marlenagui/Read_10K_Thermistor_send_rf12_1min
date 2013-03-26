@@ -26,23 +26,30 @@
  * which be obtained from http://www.rapidonline.co.uk.
  *
  */
-#include <Ports.h>
-#include <RF12.h>
+
 #include <math.h>
 #include <avr/sleep.h>
+#include <JeeLib.h>
+
+Port leds (1);
 
 //Port ldr (3);
 MilliTimer readoutTimer, aliveTimer;
 byte radioIsOn;
 #define ThermistorPIN 2                 // Analog Pin 0
 
-float vcc = 3.3;                       // only used for display purposes, if used
+float vcc = 3.3;                        // only used for display purposes, if used
                                         // set to the measured Vcc.
-float pad = 10000;                       // balance/pad resistor value, set this to
+float pad = 10000;                      // balance/pad resistor value, set this to
                                         // the measured resistance of your pad resistor
-float thermr = 10000;                   // thermistor nominal resistance
-float AvgTemp;                      //To average the mesured temp, will remove picks
+float thermr = 10000.0;                   // thermistor nominal resistance
+float AvgTemp = 0.0;                    //To average the mesured temp, will remove picks
 
+static void sendLed (byte on) {         //to flash red LED when sending
+    leds.mode(OUTPUT);
+    leds.digiWrite(on);
+}
+    
 float Thermistor(int RawADC) {
   long Resistance;  
   float Temp;  // Dual-Purpose variable to save space.
@@ -66,6 +73,7 @@ void setup () {
     // enable pull-up on LDR analog input
     //ldr.mode2(INPUT);
     //ldr.digiWrite2(1);
+    AvgTemp=Thermistor(analogRead(ThermistorPIN)); //set the Average to 
 }
 
 void loop () 
@@ -86,14 +94,21 @@ void loop ()
     {
         // keep track of a running 60-second average
         temp=Thermistor(analogRead(ThermistorPIN));       // read ADC and  convert it to Celsius
-        AvgTemp = (4 * AvgTemp + temp) / 5; 
+        //if ( AvgTemp = 0.0 ) {
+         // AvgTemp = temp;
+        //} else {
+          AvgTemp = (4 * AvgTemp + temp) / 5; 
+        //}
         Serial.print("temp : ");
         Serial.print(temp);
         Serial.print("\nAvgTemp : ");
         Serial.print(AvgTemp);
         Serial.print("\n");
         // send measurement data, but only when it changes
+        sendLed(1); // LED on
         float sending = rf12_easySend(&AvgTemp, sizeof AvgTemp);
+        delay(50);
+        sendLed(0); //LED off
         // force a "sign of life" packet out every 60 seconds
         //if (aliveTimer.poll(60000))
             //sending = rf12_easySend(0, 0); // always returns 1
